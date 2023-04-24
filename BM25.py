@@ -119,13 +119,22 @@ with open('data/claims.jsonl', 'r', encoding = 'utf-8') as f:
         df.loc[len(df)] = item
 
 num_selected = 0
+
+out_df = pd.DataFrame(columns = ['id', 'doc_id'])
+
 for index, row in tqdm(df.iterrows()):
     selected_papers = bm25(row['claim'])
     print(f"Claim {row['id']}, selected papers: ", selected_papers)
 
     for p in selected_papers:
-        if str(doc_ids[p]) in row['evidence'].keys():
+        p = doc_ids[p]
+
+    out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers}
+
+    for p in selected_papers:
+        if str(p) in row['evidence'].keys():
             num_selected += 1
 
 print(f"BM25 have sampled {num_selected} of {len(documents)}.")
 
+out_df.to_csv('BM25_result.csv')
