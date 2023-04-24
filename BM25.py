@@ -13,7 +13,7 @@ from tqdm import tqdm
 import pandas as pd
 
 def preprocess_corpus(documents, doc_ids):
-    if os.path.exists('data/corpus_vocab_matrix.npy') and os.path.exists('data/corpus_doc_onehot.npy') and os.path.exists('data/corpus_idf.npy'):
+    if os.path.exists('data/corpus_vocab_matrix.pkl') and os.path.exists('data/corpus_doc_onehot.pkl') and os.path.exists('data/corpus_idf.pkl'):
         return
     print("============START PREPROCESSING=====================")
     print("==============FILTERING========================")
@@ -124,16 +124,20 @@ out_df = pd.DataFrame(columns = ['id', 'doc_id'])
 
 for index, row in tqdm(df.iterrows()):
     selected_papers = bm25(row['claim'])
-    print(f"Claim {row['id']}, selected papers: ", selected_papers)
+    
 
-    for p in selected_papers:
-        p = doc_ids[p]
+    for i, p in enumerate(selected_papers):
+        selected_papers[i] = doc_ids[p]
 
     out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers}
 
     for p in selected_papers:
         if str(p) in row['evidence'].keys():
             num_selected += 1
+    
+    print(f"Claim {row['id']}, selected papers: ", selected_papers)
+
+    
 
 print(f"BM25 have sampled {num_selected} of {len(documents)}.")
 
