@@ -1,10 +1,11 @@
 import argparse
 import os
 import openai
+import galai as gal
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def get_response(prompt, args):
+def get_GPT_response(prompt, args):
     response = openai.Completion.create(
         model = args.model,
         prompt = prompt,
@@ -14,6 +15,8 @@ def get_response(prompt, args):
     )
 
     return response
+def get_Gal_response(prompt, args):
+    pass
 
 def store_responses():
     pass
