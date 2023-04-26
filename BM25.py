@@ -12,9 +12,16 @@ import jsonlines
 from tqdm import tqdm
 import pandas as pd
 
+def check_if_preprocessed() -> bool:
+    if os.path.exists('data/corpus_vocab_matrix.pkl') and os.path.exists('data/corpus_doc_onehot.pkl') and os.path.exists('data/corpus_idf.pkl') \
+        and os.path.exists('data/vocab_to_index.pkl') and os.path.exists('data/index_to_doc_id.pkl'):
+        
+        return True
+    else:
+        return False
+
 def preprocess_corpus(documents, doc_ids):
-    if os.path.exists('data/corpus_vocab_matrix.pkl') and os.path.exists('data/corpus_doc_onehot.pkl') and os.path.exists('data/corpus_idf.pkl'):
-        return
+    
     print("============START PREPROCESSING=====================")
     print("==============FILTERING========================")
     # preprocessing sentences
@@ -35,6 +42,8 @@ def preprocess_corpus(documents, doc_ids):
     
     print("GOT vocabulary with length = ", len(vocab))
 
+    vocab_to_index = {tok: i for i, tok in enumerate(vocab)}
+
     # Compute the IDF values
     transformer = TfidfTransformer()
     tfidf = transformer.fit_transform(term_freq)
@@ -45,6 +54,8 @@ def preprocess_corpus(documents, doc_ids):
     # saving results
     with open('data/corpus_vocab_matrix.pkl', 'wb') as f:
         pickle.dump(vocab, f)
+    with open("data/vocab_to_index.pkl", 'wb') as f:
+        pickle.dump(vocab_to_index, f)
     with open('data/corpus_doc_onehot.pkl', 'wb') as f:
         pickle.dump(term_freq, f)
     with open('data/corpus_idf.pkl', 'wb') as f:
@@ -53,7 +64,7 @@ def preprocess_corpus(documents, doc_ids):
         pickle.dump(doc_ids.to_list(), f)
 
 
-def bm25(query, top_k = 5, k1=1.5, b=0.75):
+def bm25(query, top_k = 5, k1=0.9, b=0.82):
     # Tokenize the query and documents
     query_tokens = word_tokenize(query.lower())
     
@@ -66,7 +77,7 @@ def bm25(query, top_k = 5, k1=1.5, b=0.75):
 
     # Compute the document lengths
     doc_len = np.sum(term_freq, axis=1)
-
+    
     # Compute the average document length
     avg_doc_len = np.mean(doc_len)
 
@@ -74,35 +85,43 @@ def bm25(query, top_k = 5, k1=1.5, b=0.75):
     scores = []
     for i, doc in tqdm(enumerate(term_freq)):
         score = 0
-        for token in query_tokens:
+        tf = np.zeros(len(query_tokens))
+        query_idf = np.zeros(len(query_tokens))
+
+        for j, token in enumerate(query_tokens):
             if token in vocab:
                 # Compute the term frequency
-                tf = term_freq[i, vocab.index(token)]
-                # Compute the BM25 score for the current token
-                score += idf[vocab.index(token)] * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len[i] / avg_doc_len))))
-        scores.append(score[0, 0])
+                tf[j] = term_freq[i, vocab_to_index[token]]
+                query_idf[j] = idf[vocab_to_index[token]]
+        # Compute the BM25 score for the current token
+
+        score = np.sum(query_idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len[i, 0] / avg_doc_len)))))
+        scores.append(score)
 
     # Return the BM25 scores
     return np.argsort(scores)[-top_k:]
 
+if not check_if_preprocessed():
+    df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
+    with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
+        for item in jsonlines.Reader(f):
+            df.loc[len(df)] = item
+    def list_to_str(l):
+        return ' '.join(l)
+    df['abstract'] = df['abstract'].apply(list_to_str)
 
-df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
-with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
-    for item in jsonlines.Reader(f):
-        df.loc[len(df)] = item
-def list_to_str(l):
-    return ' '.join(l)
-df['abstract'] = df['abstract'].apply(list_to_str)
+    documents = (df['title'] + df['abstract']).to_list()
 
-documents = (df['title'] + df['abstract']).to_list()
+    print("Number of papers: ", len(documents))
 
-print("Number of papers: ", len(documents))
-
-preprocess_corpus(documents, df['doc_id'])
+    preprocess_corpus(documents, df['doc_id'])
 
 if os.path.exists('data/corpus_vocab_matrix.pkl'):
     with open('data/corpus_vocab_matrix.pkl', 'rb') as f:
         vocab = pickle.load(f).tolist()
+if os.path.exists('data/vocab_to_index.pkl'):
+    with open('data/vocab_to_index.pkl', 'rb') as f:
+        vocab_to_index = pickle.load(f)
 if os.path.exists('data/corpus_doc_onehot.pkl'):
     with open('data/corpus_doc_onehot.pkl', 'rb') as f:
         term_freq = pickle.load(f)
