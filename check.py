@@ -25,16 +25,17 @@ def ECAP_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
-        while(upper_idx < gold_df.shape[0] and gold_df[upper_idx]['id'] == id):
+        while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
         for i in range(lower_idx, upper_idx):
-            if equal_rows(row, gold_df[i]):
+            if equal_rows(row, gold_df.iloc[i]):
                 correct_pred += 1
                 break
         
         lower_idx = upper_idx
         
-    
+    print('=============ECAP ACCURACY=============')
+    print(correct_pred / gold_df.shape[0])
     return correct_pred / gold_df.shape[0]
 
 
@@ -46,16 +47,16 @@ def predict_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
-        while(upper_idx < gold_df.shape[0] and gold_df[upper_idx]['id'] == id):
+        while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
-        if id == gold_df[lower_idx]['id']:
+        if id == gold_df.iloc[lower_idx]['id']:
             have_doc = False
             for i in range(lower_idx, upper_idx):
-                if equal_rows(row, gold_df[i]):
+                if equal_rows(row, gold_df.iloc[i]):
                     have_doc = True
                     correct_pred += 1
                     break
-                elif row['doc_id'] == gold_df[i]['doc_id']:
+                elif row['doc_id'] == gold_df.iloc[i]['doc_id']:
                     have_doc = True
                     break
 
@@ -68,6 +69,8 @@ def predict_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
             if row['response'] == 0:
                 correct_pred += 1
         lower_idx = upper_idx
+    print('=============PREDICTION ACCURACY=============')
+    print(correct_pred / response_df.shape[0])
 
     return correct_pred / response_df.shape[0]
 
@@ -86,12 +89,12 @@ def Oracle_3_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
-        while(upper_idx < gold_df.shape[0] and gold_df[upper_idx]['id'] == id):
+        while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
-        if id == gold_df[lower_idx]['id']:
+        if id == gold_df.iloc[lower_idx]['id']:
             have_doc = False
             for i in range(lower_idx, upper_idx):
-                if equal_rows(row, gold_df[i]):
+                if equal_rows(row, gold_df.iloc[i]):
                     have_doc = True
                     
                     if row['response'] == 1:
@@ -101,15 +104,15 @@ def Oracle_3_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
 
                     break
 
-                elif row['doc_id'] == gold_df[i]['doc_id']:
-                    if gold_df[i]['label'] == 1:
+                elif row['doc_id'] == gold_df.iloc[i]['doc_id']:
+                    if gold_df.iloc[i]['label'] == 1:
                         S_FN += 1
                         if row['response'] == 2:
                             C_FP += 1
                         if row['response'] == 0:
                             N_FP += 1
 
-                    elif gold_df[i]['label'] == 2:
+                    elif gold_df.iloc[i]['label'] == 2:
                         C_FN += 1
                         if row['response'] == 1:
                             S_FP += 1
@@ -163,12 +166,12 @@ def FEVER_2_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
-        while(upper_idx < gold_df.shape[0] and gold_df[upper_idx]['id'] == id):
+        while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
-        if id == gold_df[lower_idx]['id']:
+        if id == gold_df.iloc[lower_idx]['id']:
             have_doc = False
             for i in range(lower_idx, upper_idx):
-                if equal_rows(row, gold_df[i]):
+                if equal_rows(row, gold_df.iloc[i]):
                     have_doc = True
                     
                     if row['response'] == 1:
@@ -177,13 +180,13 @@ def FEVER_2_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
                         C_TP += 1
 
                     break
-                elif row['doc_id'] == gold_df[i]['doc_id']:
-                    if gold_df[i]['label'] == 1:
+                elif row['doc_id'] == gold_df.iloc[i]['doc_id']:
+                    if gold_df.iloc[i]['label'] == 1:
                         S_FN += 1
                         if row['response'] == 2:
                             C_FP += 1
                     
-                    elif gold_df[i]['label'] == 2:
+                    elif gold_df.iloc[i]['label'] == 2:
                         C_FN += 1
                         if row['response'] == 1:
                             S_FP += 1
@@ -237,11 +240,12 @@ if __name__ == '__main__':
     # NEI not included
     for row in df.index:
         for key in df.loc[row]['evidence']:
-            flatten_df.loc[len(flatten_df)] = {'id': df.loc[row]['id'],'claim': df.loc[row]['claim'], 'doc_id': key, 'provenance': df.loc[row]['evidence'][key]['provenance'], 
+            flatten_df.loc[len(flatten_df)] = {'id': df.loc[row]['id'],'claim': df.loc[row]['claim'], 'doc_id': int(key), 'provenance': df.loc[row]['evidence'][key]['provenance'], 
             'label': enum[df.loc[row]['evidence'][key]['label']], 'sentences': df.loc[row]['evidence'][key]['sentences'], 'model_ranks': df.loc[row]['evidence'][key]['model_ranks']}
         
     # ECAP acc
-
-
-    
+    pred_ecap_acc = ECAP_acc(response_df, flatten_df)
+    pred_acc = predict_acc(response_df, flatten_df)
+    pref_Oracle_f1 = Oracle_3_class_F1(response_df, flatten_df)
+    pred_fever_f1 = FEVER_2_class_F1(response_df, flatten_df)
 

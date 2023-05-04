@@ -4,6 +4,10 @@ import jsonlines
 import os
 import pickle
 
+import ast
+
+def parse_list(s):
+    return ast.literal_eval(s) if isinstance(s, str) else s
 
 def form_prompt(paper, claim):
     prompt_template = """Answer the Question according to the Abstract
@@ -23,7 +27,6 @@ Answer: """
     abstract_sents = " ".join(abstract_sents)
     
     prompt = prompt_template.format(paper['title'], abstract_sents, claim['claim'])
-    print(prompt)
 
     return prompt
 
@@ -34,7 +37,7 @@ if __name__ == '__main__':
     # 'doc_id': list of ids of retrieved documents for current claim
 
     # get BM25 result
-    df = pd.read_csv('BM25_result.csv')
+    df = pd.read_csv('Oracle_input.csv', converters={'doc_id': parse_list})
 
     # use claim_id to get claim
     claim_df = pd.DataFrame(columns = ['id', 'claim', 'evidence'])
@@ -56,16 +59,16 @@ if __name__ == '__main__':
     out_df = pd.DataFrame(columns = ['claim_id', 'doc_id', 'prompt'])
     for index, row in tqdm(df.iterrows()):
         # get claim
-        claim = claim_df[index]
+        claim = claim_df.iloc[index]
 
         #get doc
         retrieved_doc_ids = row['doc_id']
         for doc_id in retrieved_doc_ids:
             doc_index = doc_ids.index(doc_id)
-            paper = doc_df[doc_index]
+            paper = doc_df.iloc[doc_index]
 
             # form prompt
             prompt = form_prompt(paper, claim)
             out_df.loc[len(out_df)] = {'claim_id': claim['id'], 'doc_id': doc_id, 'prompt': prompt}
 
-    out_df.to_csv('data/prompts.csv')
+    out_df.to_csv('data/Oracle_prompts.csv')

@@ -15,6 +15,8 @@ if __name__ == '__main__':
     model = 'gpt-3.5-turbo'
     response_df = pd.read_csv('data/{}_out.csv'.format(model))
 
+    # print(response_df, response_df.columns)
+    response_df = response_df.drop('Unnamed: 0', axis=1)
     response_df['response'] = response_df['response'].apply(post_process)
 
     response_df.to_csv('data/{}_parsed.csv'.format(model))

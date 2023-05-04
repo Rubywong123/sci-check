@@ -103,9 +103,10 @@ def bm25(query, top_k = 5, k1=2.9, b=0.82):
     return np.argsort(scores)[-top_k:]
 
 if __name__ == '__main__':
+    # TODO: hyper-parameter tuning
     parser = argparse.ArgumentParser()
     parser.add_argument('--top_k', type=int, default = 5)
-    parser.add_argument('--k1', type = float, default = 2.9)
+    parser.add_argument('--k1', type = float, default = 0.9)
     parser.add_argument('--b', type=float, default = 0.82)
     args = parser.parse_args()
 
@@ -156,15 +157,16 @@ if __name__ == '__main__':
         for i, p in enumerate(selected_papers):
             selected_papers[i] = doc_ids[p]
 
-        out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers}
+        out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers.tolist()}
 
         for p in selected_papers:
             if str(p) in row['evidence'].keys():
                 num_selected += 1
 
-        
+        ##########################
         if index >= 15:
             break
+        ##########################
         
         print(f"Claim {row['id']}, selected papers: ", selected_papers)
 
