@@ -11,6 +11,7 @@ from nltk.stem import SnowballStemmer
 import jsonlines
 from tqdm import tqdm
 import pandas as pd
+import argparse
 
 def check_if_preprocessed() -> bool:
     if os.path.exists('data/corpus_vocab_matrix.pkl') and os.path.exists('data/corpus_doc_onehot.pkl') and os.path.exists('data/corpus_idf.pkl') \
@@ -64,7 +65,7 @@ def preprocess_corpus(documents, doc_ids):
         pickle.dump(doc_ids.to_list(), f)
 
 
-def bm25(query, top_k = 5, k1=0.9, b=0.82):
+def bm25(query, top_k = 5, k1=2.9, b=0.82):
     # Tokenize the query and documents
     query_tokens = word_tokenize(query.lower())
     
@@ -101,63 +102,77 @@ def bm25(query, top_k = 5, k1=0.9, b=0.82):
     # Return the BM25 scores
     return np.argsort(scores)[-top_k:]
 
-if not check_if_preprocessed():
-    df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
-    with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--top_k', type=int, default = 5)
+    parser.add_argument('--k1', type = float, default = 2.9)
+    parser.add_argument('--b', type=float, default = 0.82)
+    args = parser.parse_args()
+
+    if not check_if_preprocessed():
+        df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
+        with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
+            for item in jsonlines.Reader(f):
+                df.loc[len(df)] = item
+        def list_to_str(l):
+            return ' '.join(l)
+        df['abstract'] = df['abstract'].apply(list_to_str)
+
+        documents = (df['title'] + df['abstract']).to_list()
+
+        print("Number of papers: ", len(documents))
+
+        preprocess_corpus(documents, df['doc_id'])
+
+    if os.path.exists('data/corpus_vocab_matrix.pkl'):
+        with open('data/corpus_vocab_matrix.pkl', 'rb') as f:
+            vocab = pickle.load(f).tolist()
+    if os.path.exists('data/vocab_to_index.pkl'):
+        with open('data/vocab_to_index.pkl', 'rb') as f:
+            vocab_to_index = pickle.load(f)
+    if os.path.exists('data/corpus_doc_onehot.pkl'):
+        with open('data/corpus_doc_onehot.pkl', 'rb') as f:
+            term_freq = pickle.load(f)
+    if os.path.exists('data/corpus_idf.pkl'):
+        with open('data/corpus_idf.pkl', 'rb') as f:
+            idf = pickle.load(f)
+    if os.path.exists('data/index_to_doc_id.pkl'):
+        with open('data/index_to_doc_id.pkl', 'rb') as f:
+            doc_ids = pickle.load(f)
+
+    df = pd.DataFrame(columns = ['id', 'claim', 'evidence'])
+    with open('data/claims.jsonl', 'r', encoding = 'utf-8') as f:
         for item in jsonlines.Reader(f):
             df.loc[len(df)] = item
-    def list_to_str(l):
-        return ' '.join(l)
-    df['abstract'] = df['abstract'].apply(list_to_str)
 
-    documents = (df['title'] + df['abstract']).to_list()
+    num_selected = 0
 
-    print("Number of papers: ", len(documents))
+    out_df = pd.DataFrame(columns = ['id', 'doc_id'])
 
-    preprocess_corpus(documents, df['doc_id'])
+    for index, row in tqdm(df.iterrows()):
+        selected_papers = bm25(row['claim'], top_k = args.top_k, k1 = args.k1, b = args.b)
+        
 
-if os.path.exists('data/corpus_vocab_matrix.pkl'):
-    with open('data/corpus_vocab_matrix.pkl', 'rb') as f:
-        vocab = pickle.load(f).tolist()
-if os.path.exists('data/vocab_to_index.pkl'):
-    with open('data/vocab_to_index.pkl', 'rb') as f:
-        vocab_to_index = pickle.load(f)
-if os.path.exists('data/corpus_doc_onehot.pkl'):
-    with open('data/corpus_doc_onehot.pkl', 'rb') as f:
-        term_freq = pickle.load(f)
-if os.path.exists('data/corpus_idf.pkl'):
-    with open('data/corpus_idf.pkl', 'rb') as f:
-        idf = pickle.load(f)
-if os.path.exists('data/index_to_doc_id.pkl'):
-    with open('data/index_to_doc_id.pkl', 'rb') as f:
-        doc_ids = pickle.load(f)
+        for i, p in enumerate(selected_papers):
+            selected_papers[i] = doc_ids[p]
 
-df = pd.DataFrame(columns = ['id', 'claim', 'evidence'])
-with open('data/claims.jsonl', 'r', encoding = 'utf-8') as f:
-    for item in jsonlines.Reader(f):
-        df.loc[len(df)] = item
+        out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers}
 
-num_selected = 0
+        for p in selected_papers:
+            if str(p) in row['evidence'].keys():
+                num_selected += 1
 
-out_df = pd.DataFrame(columns = ['id', 'doc_id'])
+        
+        if index >= 15:
+            break
+        
+        print(f"Claim {row['id']}, selected papers: ", selected_papers)
 
-for index, row in tqdm(df.iterrows()):
-    selected_papers = bm25(row['claim'])
-    
+    out_df.to_csv('BM25_result.csv')
 
-    for i, p in enumerate(selected_papers):
-        selected_papers[i] = doc_ids[p]
+    print(f"BM25 have sampled {num_selected}.")
 
-    out_df.loc[len(out_df)] = {'id': row['id'], 'doc_id': selected_papers}
+    with open('BM25_res.log', 'a') as f:
+        f.write('k1 = {}, b = {}\n'.format(args.k1, args.b))
+        f.write(f"BM25 have sampled {num_selected}.\n")
 
-    for p in selected_papers:
-        if str(p) in row['evidence'].keys():
-            num_selected += 1
-    
-    print(f"Claim {row['id']}, selected papers: ", selected_papers)
-
-    
-
-print(f"BM25 have sampled {num_selected} of {len(documents)}.")
-
-out_df.to_csv('BM25_result.csv')
