@@ -105,15 +105,15 @@ def bm25(query, top_k = 5, k1=2.9, b=0.82):
 if __name__ == '__main__':
     # TODO: hyper-parameter tuning
     parser = argparse.ArgumentParser()
-    parser.add_argument('--top_k', type=int, default = 5)
+    parser.add_argument('--top_k', type=int, default = 20)
     parser.add_argument('--k1', type = float, default = 0.9)
     parser.add_argument('--b', type=float, default = 0.82)
     args = parser.parse_args()
 
     if not check_if_preprocessed():
         df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
-        with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
-            for item in jsonlines.Reader(f):
+        with open('data/corpus.jsonl', 'r', encoding = 'utf-8') as f:
+            for item in tqdm(jsonlines.Reader(f)):
                 df.loc[len(df)] = item
         def list_to_str(l):
             return ' '.join(l)
@@ -162,11 +162,6 @@ if __name__ == '__main__':
         for p in selected_papers:
             if str(p) in row['evidence'].keys():
                 num_selected += 1
-
-        ##########################
-        if index >= 15:
-            break
-        ##########################
         
         print(f"Claim {row['id']}, selected papers: ", selected_papers)
 

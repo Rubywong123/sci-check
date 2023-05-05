@@ -69,9 +69,6 @@ if __name__ == '__main__':
         prompt = row['prompt']
         response = get_response(prompt, args)
         response_df.loc[len(response_df)] = {'claim_id': row['claim_id'], 'doc_id': row['doc_id'], 'response': response}
-
-        if i >= 2:
-            break
     
     # store responses
     response_df.to_csv('data/{}_out.csv'.format(args.model))
