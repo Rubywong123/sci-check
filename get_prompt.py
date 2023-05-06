@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     # use doc_id to get abstract sentences
     doc_df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
-    with open('data/corpus_candidates.jsonl', 'r', encoding = 'utf-8') as f:
+    with open('data/corpus.jsonl', 'r', encoding = 'utf-8') as f:
         for item in jsonlines.Reader(f):
             doc_df.loc[len(doc_df)] = item
 

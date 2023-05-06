@@ -25,6 +25,15 @@ def ECAP_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
+        # adjust interval
+        # lower_index
+        while(lower_idx < gold_df.shape[0] and gold_df.iloc[lower_idx]['id'] < id):
+            lower_idx += 1
+        if lower_idx >= gold_df.shape[0]:
+            break
+        # upper_index
+        upper_idx = lower_idx + 1
+        
         while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
         for i in range(lower_idx, upper_idx):
@@ -32,7 +41,6 @@ def ECAP_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
                 correct_pred += 1
                 break
         
-        lower_idx = upper_idx
         
     print('=============ECAP ACCURACY=============')
     print(correct_pred / gold_df.shape[0])
@@ -45,11 +53,24 @@ def predict_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
 
     lower_idx = 0
     upper_idx = 0
+    
     for idx, row in response_df.iterrows():
         id = row['claim_id']
+
+        # adjust interval
+        # lower_index
+        while(lower_idx < gold_df.shape[0] and gold_df.iloc[lower_idx]['id'] < id):
+            lower_idx += 1
+        if lower_idx >= gold_df.shape[0]:
+            break
+        # upper_index
+        upper_idx = lower_idx + 1
+        
         while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
+
         if id == gold_df.iloc[lower_idx]['id']:
+            
             have_doc = False
             for i in range(lower_idx, upper_idx):
                 if equal_rows(row, gold_df.iloc[i]):
@@ -68,7 +89,7 @@ def predict_acc(response_df: pd.DataFrame, gold_df: pd.DataFrame):
             # check if response is NEI
             if row['response'] == 0:
                 correct_pred += 1
-        lower_idx = upper_idx
+        
     print('=============PREDICTION ACCURACY=============')
     print(correct_pred / response_df.shape[0])
 
@@ -89,8 +110,19 @@ def Oracle_3_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
+
+        # adjust interval
+        # lower_index
+        while(lower_idx < gold_df.shape[0] and gold_df.iloc[lower_idx]['id'] < id):
+            lower_idx += 1
+        if lower_idx >= gold_df.shape[0]:
+            break
+        # upper_index
+        upper_idx = lower_idx + 1
+        
         while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
+
         if id == gold_df.iloc[lower_idx]['id']:
             have_doc = False
             for i in range(lower_idx, upper_idx):
@@ -140,8 +172,6 @@ def Oracle_3_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
                 S_FP += 1
             elif row['response'] == 2:
                 C_FP += 1
-
-        lower_idx = upper_idx
     
     S_precision, S_recall, S_f1 = compute_F1(S_TP, S_FP, S_FN)
     C_precision, C_recall, C_f1 = compute_F1(C_TP, C_FP, C_FN)
@@ -166,6 +196,15 @@ def FEVER_2_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
     upper_idx = 0
     for idx, row in response_df.iterrows():
         id = row['claim_id']
+        # adjust interval
+        # lower_index
+        while(lower_idx < gold_df.shape[0] and gold_df.iloc[lower_idx]['id'] < id):
+            lower_idx += 1
+        if lower_idx >= gold_df.shape[0]:
+            break
+        # upper_index
+        upper_idx = lower_idx + 1
+        
         while(upper_idx < gold_df.shape[0] and gold_df.iloc[upper_idx]['id'] == id):
             upper_idx += 1
         if id == gold_df.iloc[lower_idx]['id']:
@@ -208,8 +247,6 @@ def FEVER_2_class_F1(response_df: pd.DataFrame, gold_df: pd.DataFrame):
                     S_FP += 1
                 elif row['response'] == 2:
                     C_FP += 1
-
-        lower_idx = upper_idx
     
     S_precision, S_recall, S_f1 = compute_F1(S_TP, S_FP, S_FN)
     C_precision, C_recall, C_f1 = compute_F1(C_TP, C_FP, C_FN)

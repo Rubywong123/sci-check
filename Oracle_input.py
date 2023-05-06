@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     corpus_df = pd.DataFrame(columns = ['doc_id', 'title', 'abstract', 'metadata'])
     with open('data/corpus.jsonl', 'r', encoding = 'utf-8') as f:
-        for item in jsonlines.Reader(f):
+        for item in tqdm(jsonlines.Reader(f)):
             corpus_df.loc[len(corpus_df)] = item
 
     df = pd.DataFrame(columns = ['id', 'claim', 'evidence'])
