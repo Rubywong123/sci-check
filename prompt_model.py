@@ -3,7 +3,7 @@ import os
 import openai
 import pandas as pd
 import torch
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from tqdm import tqdm
 
 from transformers import AutoTokenizer, OPTForCausalLM
@@ -46,8 +46,8 @@ def galactica_response(prompt, model: OPTForCausalLM, tokenizer, device, args):
     return tokenizer.decode(outputs[0])
 
 if __name__ == '__main__':
-    load_dotenv()
-    openai.api_key = os.getenv('OPENAI_API_KEY')
+    # load_dotenv()
+    # openai.api_key = os.getenv('OPENAI_API_KEY')
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='choose model to prompt', choices=['gpt-3.5-turbo', 'galactica-mini', 'galactica-base'
                                                                            'galactica-standard', 'galactica-large', 'galactica-huge']
@@ -65,15 +65,18 @@ if __name__ == '__main__':
 
     if 'galactica' in args.model:
         print("=================LOADING MODEL====================")
-        tokenizer = AutoTokenizer.from_pretrained('./checkpoints/{}'.format(args.model), torch_dtype=torch.float16)
-        model = OPTForCausalLM.from_pretrained('./checkpoints/{}'.format(args.model), torch_dtype=torch.float16)
+        
 
         if torch.cuda.is_available():   #GPU running
+            tokenizer = AutoTokenizer.from_pretrained('./checkpoints/{}'.format(args.model), torch_dtype=torch.float16)
+            model = OPTForCausalLM.from_pretrained('./checkpoints/{}'.format(args.model), torch_dtype=torch.float16)
             device = torch.device('cuda')
         else:
+            tokenizer = AutoTokenizer.from_pretrained('./checkpoints/{}'.format(args.model))
+            model = OPTForCausalLM.from_pretrained('./checkpoints/{}'.format(args.model))
             device = torch.device('cpu')
+        print(device)
         model.to(device)
-        
         
 
     for i, row in tqdm(prompt_df.iterrows()):
