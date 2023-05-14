@@ -18,7 +18,8 @@ def GPT_response(prompt, args):
             max_tokens = 20,
         )
 
-        print(response)
+        if args.debug:
+            print(response)
             
         return response.choices[0].text.strip()
     
@@ -31,29 +32,36 @@ def GPT_response(prompt, args):
             max_tokens = 20,
         )
 
-        print(response)
+        if args.debug:
+            print(response)
             
         return response.choices[0]['message']['content'].strip()
-def galactica_response(prompt, model: OPTForCausalLM, tokenizer, device, args):
-    input_ids = tokenizer(prompt, return_tensors='pt').input_ids.to(device)
+def galactica_response(prompt, model: OPTForCausalLM, tokenizer: AutoTokenizer, device, args):
+    input_ids = tokenizer(prompt, max_length = 1024, truncation=True, return_tensors='pt').input_ids.to(device)
+
+    if args.debug:
+        print(input_ids, input_ids.shape)
+
     outputs = model.generate(
         input_ids, 
         max_new_tokens=20, 
         temperature=args.temperature,
         top_p = args.top_p,
     )
-    print(tokenizer.decode(outputs[0]))
+    if args.debug:
+        print(tokenizer.decode(outputs[0]))
     return tokenizer.decode(outputs[0])
 
 if __name__ == '__main__':
     # load_dotenv()
     # openai.api_key = os.getenv('OPENAI_API_KEY')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', help='choose model to prompt', choices=['gpt-3.5-turbo', 'galactica-mini', 'galactica-base'
+    parser.add_argument('--model', help='choose model to prompt', choices=['gpt-3.5-turbo', 'galactica-mini', 'galactica-base',
                                                                            'galactica-standard', 'galactica-large', 'galactica-huge']
                                                                 , default='galactica-mini')
     parser.add_argument('--temperature', type=float, default=0)
     parser.add_argument('--top_p', type=float, default = 1.0)
+    parser.add_argument('--debug', type=bool, default = False)
 
     args = parser.parse_args()
 
@@ -80,6 +88,7 @@ if __name__ == '__main__':
         
 
     for i, row in tqdm(prompt_df.iterrows()):
+        
         prompt = row['prompt']
         if 'galactica' not in args.model:
             response = GPT_response(prompt, args)
