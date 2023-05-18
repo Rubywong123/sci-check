@@ -4,6 +4,7 @@ import openai
 import pandas as pd
 import torch
 # from dotenv import load_dotenv
+from peft import LoraConfig, get_peft_model, PeftModelForCausalLM
 from tqdm import tqdm
 import jsonlines
 from transformers import AutoTokenizer, OPTForCausalLM
@@ -14,6 +15,7 @@ def parse_list(s):
     return ast.literal_eval(s) if isinstance(s, str) else s
 
 prompt_template = '''
+
 Is the Document relevant to the claim? Answer Yes or No. Claim: {} Document:{} Answer: '''
 
 def get_components(input: str):
@@ -25,7 +27,6 @@ def get_components(input: str):
 
     return body, claim
 
-model = 'galactica-base'
 
 df = pd.read_csv('data/Oracle_prompts.csv')
 
@@ -35,13 +36,27 @@ print("=================LOADING MODEL====================")
 device = torch.device('cpu')
 
 if torch.cuda.is_available():   #GPU running
-    tokenizer = AutoTokenizer.from_pretrained('./checkpoints/{}'.format(model), torch_dtype=torch.float16)
-    model = OPTForCausalLM.from_pretrained('./checkpoints/{}'.format(model), torch_dtype=torch.float16)
+    tokenizer = AutoTokenizer.from_pretrained('./checkpoints/galactica-filter', torch_dtype=torch.float16)
+    config = LoraConfig(
+        r = 16,
+        lora_alpha=32,
+        target_modules = ['q_proj', 'v_proj'],
+        lora_dropout=0.05,
+        bias = 'none',
+        task_type = 'CAUSAL_LM'
+    )
+    model = OPTForCausalLM.from_pretrained('./checkpoints/galactica-filter', torch_dtype=torch.float16)
     device = torch.device('cuda')
+
+    model = PeftModelForCausalLM.from_pretrained(model, './checkpoints/galactica-filter/checkpoint-20000')
 
 
 print(device)
 model.to(device)
+
+
+
+model.eval()
 
 claim_df = pd.DataFrame(columns = ['id', 'claim', 'evidence'])
 with open('data/claims.jsonl', 'r', encoding = 'utf-8') as f:
@@ -70,10 +85,10 @@ for i, row in tqdm(df.iterrows()):
 
     # print(prompt)
 
-    input_ids = tokenizer(prompt, max_length = 2020, truncation=True, return_tensors='pt').input_ids.to(device)
-
+    input_ids = tokenizer(prompt, max_length = 1024, truncation=True, return_tensors='pt').input_ids.to(device)
+    
     outputs = model.generate(
-        input_ids, 
+        input_ids = input_ids, 
         max_new_tokens=20,
         temperature= 1,
         return_dict_in_generate=True,
